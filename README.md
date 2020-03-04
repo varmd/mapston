@@ -24,4 +24,4 @@ or click on the app icon in your launcher.
 
 ## Offline maps
 
-It is possible to prepackage offline maps for countries without downloading them after instalation. To do so, download the relevant mwm files from http://opensource-data.mapswithme.com/regular/weekly/ and place them in omim-maps/mwm folder. Then cd to omim-maps and run makepkg. Then install omim-maps package with pacman.
+It is possible to package and install offline maps. To do so, download the relevant mwm files from http://opensource-data.mapswithme.com/regular/weekly/ and place them in omim-maps/mwm folder. Then cd to omim-maps and run makepkg. Then install omim-maps package with pacman.
