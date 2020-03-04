@@ -1,0 +1,26 @@
+--- omim-release-95/CMakeLists.txt	2020-02-07 15:01:32.000000000 +0400
++++ CMakeLists.txt	2020-02-07 14:55:36.000000000 +0400
+@@ -9,7 +9,7 @@
+ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${OMIM_ROOT}/cmake")
+ 
+ include(OmimHelpers)
+-include(BundledBoost)
++#include(BundledBoost)
+ 
+ if (CMAKE_SYSTEM_NAME MATCHES "Linux")
+   set(LINUX_DETECTED TRUE)
+@@ -148,11 +148,11 @@
+ # Find installed packages
+ 
+ 
+-set(BOOST_VERSION 1.68)
++set(BOOST_VERSION 1.72)
+ set(OMIM_BOOST_SRC "${OMIM_ROOT}/3party/boost")
+ set(OMIM_BOOST_BINARY_PATH "${CMAKE_BINARY_DIR}/3party/boost/")
+-set(Boost_INCLUDE_DIR "${OMIM_BOOST_SRC}")
+-set(Boost_LIBRARY_DIR "${OMIM_BOOST_BINARY_PATH}/lib")
++set(Boost_INCLUDE_DIR "/usr/include/")
++set(Boost_LIBRARY_DIR "/usr/lib")
+ set(Boost_USE_STATIC_LIBS ON)
+ find_package(Threads)
+ set(Boost_USE_MULTITHREADED ON)

@@ -1,0 +1,26 @@
+pkgname=omim-maps
+pkgver=r1
+pkgrel=95
+pkgdesc='Offline OpenStreetMap maps - map files'
+arch=(x86_64)
+url='http://maps.me/en/home'
+license=(Apache)
+depends=(qt5-base maps-mew)
+#makedepends=()
+#source=(git://github.com/mapsme/omim)
+#sha1sums=('SKIP')
+
+
+prepare() {
+  #dl from http://opensource-data.mapswithme.com/regular/weekly/
+  echo "place mwm files in mwm folder"
+}
+
+package() {
+  export PKGEXT='.pkg.tar.zst'
+  #DESTDIR="${pkgdir}" ninja install
+  mkdir -p ${pkgdir}/usr/lib/omim
+  mkdir -p ${pkgdir}/usr/lib/omim/resources/
+  cp -r ../mwm/*.mwm ${pkgdir}/usr/lib/omim/resources/
+  
+}

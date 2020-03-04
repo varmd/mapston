@@ -1,0 +1,23 @@
+--- reporter.cpp	2020-01-14 16:00:07.000000000 +0400
++++ omim-release-95/tracking/reporter.cpp	2020-02-06 14:11:10.000000000 +0400
+@@ -70,9 +70,7 @@
+     if (currentTime < m_lastNotChargingEvent + kNotChargingEventPeriod)
+       return;
+ 
+-    alohalytics::Stats::Instance().LogEvent(
+-        "Routing_DataSending_restricted",
+-        {{"reason", "Device is not charging"}, {"mode", "vehicle"}});
++    
+     m_lastNotChargingEvent = currentTime;
+     return;
+   }
+@@ -85,6 +83,9 @@
+ 
+ void Reporter::Run()
+ {
++  
++  return;
++  
+   LOG(LINFO, ("Tracking Reporter started"));
+ 
+   unique_lock<mutex> lock(m_mutex);
