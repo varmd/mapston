@@ -13,9 +13,11 @@ Maps-Mew allows running the desktop version of MapsWithMe (https://github.com/ma
  * qtbase,qtwayland,qtsvg
  * boost-libs
  
- cd to download-dir
- makepkg -si
- pacman -U maps-mew*
+```
+    cd to download-dir
+    makepkg -si
+    pacman -U maps-mew*
+```    
  
 ### running
 
