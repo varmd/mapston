@@ -1,4 +1,4 @@
-## What is omim-wayland
+## What is maps-mew?
 
 Maps-Mew allows running the desktop version of MapsWithMe (https://github.com/mapsme/omim) on Archlinux/Wayland.
 
