@@ -1,0 +1,189 @@
+--- a/qt/qt_common/map_widget.cpp
++++ b/qt/qt_common/map_widget.cpp
+@@ -65,7 +65,10 @@
+       {Qt::Key_Minus, SLOT(ScaleMinus())},
+       {Qt::ALT + Qt::Key_Equal, SLOT(ScalePlusLight())},
+       {Qt::ALT + Qt::Key_Minus, SLOT(ScaleMinusLight())},
+-      {Qt::ALT + Qt::Key_Minus, SLOT(ScaleMinusLight())},
++      {Qt::Key_Up, SLOT(KeyMoveUp()) },
++      {Qt::Key_Down, SLOT(KeyMoveDown()) },
++      {Qt::Key_Left, SLOT(KeyMoveLeft()) },
++      {Qt::Key_Right, SLOT(KeyMoveRight()) },
+ #ifdef ENABLE_AA_SWITCH
+       {Qt::ALT + Qt::Key_A, SLOT(AntialiasingOn())},
+       {Qt::ALT + Qt::Key_S, SLOT(AntialiasingOff())},
+@@ -120,6 +123,161 @@
+ 
+ void MapWidget::ScaleMinusLight() { m_framework.Scale(Framework::SCALE_MIN_LIGHT, false); }
+ 
++void MapWidget::KeyMoveUp()
++{
++  QMouseEvent eve( (QEvent::MouseButtonPress), QPoint(100,100), 
++    Qt::LeftButton,
++    Qt::NoButton,
++    Qt::NoModifier   
++  );
++  
++  QMouseEvent eve1( (QEvent::MouseMove), QPoint(700,200), 
++    Qt::LeftButton,
++    Qt::NoButton,
++    Qt::NoModifier   
++  );
++  
++  std::default_random_engine generator;
++  std::uniform_int_distribution<int> distribution(1,5);
++  int dice_roll = distribution(generator);
++  int dice_roll1 = distribution(generator);
++  int dice_roll2 = distribution(generator);
++  int dice_roll3 = distribution(generator);
++  
++  
++  
++  //mousePressEvent(&eve);
++  //m_framework.TouchEvent(GetTouchEvent(&eve, df::TouchEvent::TOUCH_DOWN));
++  //mouseMoveEvent(&eve1);
++  
++  
++  df::TouchEvent event;
++  event.SetTouchType(df::TouchEvent::TOUCH_MOVE);
++  df::Touch touch;
++  touch.m_id = 0;
++  touch.m_location = m2::PointD(L2D(700), L2D(-30));
++  event.SetFirstTouch(touch);
++  
++
++  m_framework.TouchEvent(event);
++  
++  
++  
++  
++  df::TouchEvent event1;
++  event1.SetTouchType(df::TouchEvent::TOUCH_UP);
++  df::Touch touch1;
++  touch1.m_id = 0;
++  //touch1.m_location = m2::PointD(L2D(500 + dice_roll2), L2D(200 + dice_roll3));
++  touch1.m_location = m2::PointD(L2D(700), L2D(0));
++  event.SetFirstTouch(touch1);
++  
++
++  m_framework.TouchEvent(event);
++  
++  double const factor = m_slider->GetScaleFactor();
++  m_framework.Scale(factor, false);
++  
++  update();
++}
++
++void MapWidget::KeyMoveDown()
++{
++  
++  
++  df::TouchEvent event;
++  event.SetTouchType(df::TouchEvent::TOUCH_MOVE);
++  df::Touch touch;
++  touch.m_id = 0;
++  touch.m_location = m2::PointD(L2D(700), L2D(30));
++  event.SetFirstTouch(touch);
++  
++
++  m_framework.TouchEvent(event);
++  
++  
++  
++  
++  df::TouchEvent event1;
++  event1.SetTouchType(df::TouchEvent::TOUCH_UP);
++  df::Touch touch1;
++  touch1.m_id = 0;
++  touch1.m_location = m2::PointD(L2D(700), L2D(0));
++  event.SetFirstTouch(touch1);
++  
++
++  m_framework.TouchEvent(event);
++  
++  double const factor = m_slider->GetScaleFactor();
++  m_framework.Scale(factor, false);
++  
++  update();
++}
++
++void MapWidget::KeyMoveLeft()
++{
++    
++  df::TouchEvent event;
++  event.SetTouchType(df::TouchEvent::TOUCH_MOVE);
++  df::Touch touch;
++  touch.m_id = 0;
++  touch.m_location = m2::PointD(L2D(-30), L2D(0));
++  event.SetFirstTouch(touch);
++  
++
++  m_framework.TouchEvent(event);
++  
++  
++  
++  
++  df::TouchEvent event1;
++  event1.SetTouchType(df::TouchEvent::TOUCH_UP);
++  df::Touch touch1;
++  touch1.m_id = 0;
++  touch1.m_location = m2::PointD(L2D(0), L2D(0));
++  event.SetFirstTouch(touch1);
++  
++
++  m_framework.TouchEvent(event);
++  
++  double const factor = m_slider->GetScaleFactor();
++  m_framework.Scale(factor, false);
++  
++  update();
++}
++
++void MapWidget::KeyMoveRight()
++{
++    
++  df::TouchEvent event;
++  event.SetTouchType(df::TouchEvent::TOUCH_MOVE);
++  df::Touch touch;
++  touch.m_id = 0;
++  touch.m_location = m2::PointD(L2D(30), L2D(0));
++  event.SetFirstTouch(touch);
++  
++
++  m_framework.TouchEvent(event);
++  
++  
++  
++  
++  df::TouchEvent event1;
++  event1.SetTouchType(df::TouchEvent::TOUCH_UP);
++  df::Touch touch1;
++  touch1.m_id = 0;
++  touch1.m_location = m2::PointD(L2D(0), L2D(0));
++  event.SetFirstTouch(touch1);
++  
++
++  m_framework.TouchEvent(event);
++  
++  double const factor = m_slider->GetScaleFactor();
++  m_framework.Scale(factor, false);
++  
++  update();
++}
++
+ void MapWidget::AntialiasingOn()
+ {
+   auto engine = m_framework.GetDrapeEngine();
+--- a/qt/qt_common/map_widget.hpp
++++ b/qt/qt_common/map_widget.hpp
+@@ -51,6 +51,10 @@
+   void ScaleMinus();
+   void ScalePlusLight();
+   void ScaleMinusLight();
++  void KeyMoveUp();
++  void KeyMoveDown();
++  void KeyMoveLeft();
++  void KeyMoveRight();
+ 
+   void ScaleChanged(int action);
+   void SliderPressed();

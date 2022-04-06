@@ -1,0 +1,11 @@
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -142,7 +142,7 @@
+      RESULT_VARIABLE CheckCertResult
+   )
+   if (CheckCertResult)
+-      message(FATAL_ERROR "Certificate check failed")
++      #message(FATAL_ERROR "Certificate check failed")
+   endif()
+ endif() 
+

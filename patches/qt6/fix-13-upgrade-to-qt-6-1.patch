@@ -1,0 +1,11 @@
+--- a/qt/qt_common/qtoglcontext.hpp
++++ b/qt/qt_common/qtoglcontext.hpp
+@@ -2,7 +2,7 @@
+ 
+ #include "drape/oglcontext.hpp"
+ 
+-#include <QtGui/QOffscreenSurface>
++#include <QOffscreenSurface>
+ #include <QOpenGLFramebufferObject>
+ #include <QOpenGLContext>
+ 

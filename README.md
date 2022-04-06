@@ -1,6 +1,6 @@
 ## What is Mapston
 
-Mapston allows running the desktop version of MapsWithMe (https://github.com/mapsme/omim) on Archlinux and Wayland.
+Mapston allows running the desktop version of OrganicMaps (https://github.com/organicmaps/organicmaps) on Archlinux and Wayland.
 
 ## Screenshot
 
@@ -10,22 +10,23 @@ Mapston allows running the desktop version of MapsWithMe (https://github.com/map
 
 ### requirements
 
- * qtbase
- * qtwayland
+ * qt6-base
+ * qt6-wayland
  * boost-libs
- * icu68
- 
+ * icu
+
  cd to download-dir
  makepkg -si
- pacman -U mapston*pkg*
- 
+ pacman -U mapston-*
+
 ### running
 
-in the terminal run mapston
-or click on the app icon in your launcher.
+In the terminal run mapston
+or click on the app icon in your application launcher.
 
-## Offline maps
+## Maps
 
-Maps in the mwm format can be downloaded from http://opensource-data.mapswithme.com/regular/weekly/ (slow, outdated) or https://mwm.adrium.dev  (slow, uptodate). After downloading the .mwm files place them in `~/.local/share/MapsWithMe/` and restart the app.
+### Download
 
-It is possible to prepackage offline maps for countries. To do so, download the relevant mwm files from http://opensource-data.mapswithme.com/regular/weekly/ and place them in mapston-maps/mwm folder. Then cd to mapston-maps and run makepkg. Then install mapston-maps package with pacman.
+Maps for countries can be downdloaded from cdn.organicmaps.app.
+To install maps download and copy the mwm files to /home/username/.local/share/mapston/ and restart the app.

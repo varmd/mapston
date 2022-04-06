@@ -1,0 +1,387 @@
+Copyright (C) 2020 varmd (https://github.com/varmd)
+
+---
+
+--- a/drape/CMakeLists.txt
++++ b/drape/CMakeLists.txt
+@@ -199,9 +199,11 @@ if (NOT PLATFORM_IPHONE AND NOT PLATFORM_ANDROID)
+   endif()
+ endif()
+
+-if (PLATFORM_LINUX)
+-  find_package(OpenGL)
+-endif()
++find_library(LIBGLESV2 NAMES glesv2)
++
++
++
++
+
+ target_link_libraries(${PROJECT_NAME}
+   indexer
+--- a/drape/CMakeLists.txt
++++ b/drape/CMakeLists.txt
+@@ -177,4 +177,4 @@ append(
+
+ omim_add_library(${PROJECT_NAME} ${DRAPE_COMMON_SRC} ${SRC} ${VULKAN_SRC})
+
+-omim_add_test_subdirectory(drape_tests)
++omim_link_libraries(${PROJECT_NAME} GLESv2)
+\ No newline at end of file
+--- a/drape/CMakeLists.txt
++++ b/drape/CMakeLists.txt
+@@ -178,7 +178,7 @@
+   ICU::i18n
+   expat
+   $<$<BOOL:${PLATFORM_MAC}>:-framework\ OpenGL>
+-  $<$<BOOL:${PLATFORM_LINUX}>:OpenGL::GL>
++  $<$<BOOL:${PLATFORM_LINUX}>:GLESv2>
+ )
+
+ omim_link_libraries(${PROJECT_NAME} GLESv2)
+
+--- a/drape/gl_functions.cpp
++++ b/drape/gl_functions.cpp
+@@ -231,35 +234,13 @@ void GLFunctions::Init(dp::ApiVersion apiVersion)
+   s_inited = true;
+
+ /// VAO
+-#if defined(OMIM_OS_MAC)
+-  if (CurrentApiVersion == dp::ApiVersion::OpenGLES2)
+-  {
+-    glGenVertexArraysFn = &glGenVertexArraysAPPLE;
+-    glBindVertexArrayFn = &glBindVertexArrayAPPLE;
+-    glDeleteVertexArrayFn = &glDeleteVertexArraysAPPLE;
+-    glMapBufferFn = &::glMapBuffer;
+-    glUnmapBufferFn = &::glUnmapBuffer;
+-  }
+-  else if (CurrentApiVersion == dp::ApiVersion::OpenGLES3)
+-  {
+-    glGenVertexArraysFn = &::glGenVertexArrays;
+-    glBindVertexArrayFn = &::glBindVertexArray;
+-    glDeleteVertexArrayFn = &::glDeleteVertexArrays;
+-    glUnmapBufferFn = &::glUnmapBuffer;
+-    glMapBufferRangeFn = &::glMapBufferRange;
+-    glFlushMappedBufferRangeFn = &::glFlushMappedBufferRange;
+-    glGetStringiFn = &::glGetStringi;
+-  }
+-  else
+-  {
+-    ASSERT(false, ("Unknown Graphics API"));
+-  }
+-#elif defined(OMIM_OS_LINUX)
++#if defined(OMIM_OS_LINUX)
+   glGenVertexArraysFn = &::glGenVertexArrays;
+   glBindVertexArrayFn = &::glBindVertexArray;
+   glDeleteVertexArrayFn = &::glDeleteVertexArrays;
+-  glMapBufferFn = &::glMapBuffer;
+-  glUnmapBufferFn = &::glUnmapBuffer;
++  //glMapBufferFn = &::glMapBufferOES;
++  glUnmapBufferFn = &::glUnmapBuffer;
++  glMapBufferRangeFn = ::glMapBufferRange;
+ #elif defined(OMIM_OS_ANDROID)
+   if (CurrentApiVersion == dp::ApiVersion::OpenGLES2)
+   {
+@@ -554,7 +535,7 @@ void GLFunctions::glClearDepthValue(double depth)
+ #if defined(OMIM_OS_IPHONE) || defined(OMIM_OS_ANDROID)
+   GLCHECK(::glClearDepthf(static_cast<GLclampf>(depth)));
+ #else
+-  GLCHECK(::glClearDepth(depth));
++  GLCHECK(::glClearDepthf(static_cast<GLclampf>(depth)));
+ #endif
+ }
+
+diff --git a/qt/draw_widget.cpp b/qt/draw_widget.cpp
+index 981461dc..c44d24b0 100644
+--- a/qt/draw_widget.cpp
++++ b/qt/draw_widget.cpp
+@@ -192,6 +192,12 @@ void DrawWidget::UpdateAfterSettingsChanged()
+   m_framework.EnterForeground();
+ }
+
++void DrawWidget::CloseApp()
++{
++  QCoreApplication::quit();
++  //exit(1);
++}
++
+ void DrawWidget::ShowAll()
+ {
+   m_framework.ShowAll();
+diff --git a/qt/draw_widget.hpp b/qt/draw_widget.hpp
+index 606dc68f..23617f07 100644
+--- a/qt/draw_widget.hpp
++++ b/qt/draw_widget.hpp
+@@ -45,6 +45,7 @@ class DrawWidget : public qt::common::MapWidget
+
+ public Q_SLOTS:
+   void ShowAll();
++  void CloseApp();
+
+   void ChoosePositionModeEnable();
+   void ChoosePositionModeDisable();
+diff --git a/qt/main.cpp b/qt/main.cpp
+index a437acbb..5e3ae381 100644
+--- a/qt/main.cpp
++++ b/qt/main.cpp
+@@ -136,7 +136,8 @@ int main(int argc, char * argv[])
+
+   // display EULA if needed
+   char const * settingsEULA = "EulaAccepted";
+-  bool eulaAccepted = false;
++  bool eulaAccepted = true;
++  settings::Set(settingsEULA, eulaAccepted);
+   if (!settings::Get(settingsEULA, eulaAccepted) || !eulaAccepted)
+   {
+     QStringList buttons;
+@@ -156,7 +157,7 @@ int main(int argc, char * argv[])
+   QString mapcssFilePath;
+   if (eulaAccepted)   // User has accepted EULA
+   {
+-    bool apiOpenGLES3 = false;
++    bool apiOpenGLES3 = true;
+     std::unique_ptr<qt::ScreenshotParams> screenshotParams;
+
+ #if defined(OMIM_OS_MAC)
+diff --git a/qt/mainwindow.cpp b/qt/mainwindow.cpp
+index e49fd73c..3042a6e1 100644
+--- a/qt/mainwindow.cpp
++++ b/qt/mainwindow.cpp
+@@ -19,6 +19,7 @@
+ #include "defines.hpp"
+
+ #include <sstream>
++#include <iostream>
+
+ #include "std/target_os.hpp"
+
+@@ -175,6 +181,8 @@ MainWindow::MainWindow(Framework & framework, bool apiOpenGLES3,
+   int const width = m_screenshotMode ? static_cast<int>(screenshotParams->m_width) : 0;
+   int const height = m_screenshotMode ? static_cast<int>(screenshotParams->m_height) : 0;
+-  m_pDrawWidget = new DrawWidget(framework, apiOpenGLES3, std::move(screenshotParams), this);
++  m_pDrawWidget = new DrawWidget(framework, true, std::move(screenshotParams), this);
++
++
+
+   if (m_screenshotMode)
+   {
+@@ -187,6 +195,13 @@ MainWindow::MainWindow(Framework & framework, bool apiOpenGLES3,
+     setMaximumSize(size);
+     setMinimumSize(size);
+   }
++
++  QSize size(static_cast<int>(1500), static_cast<int>(950));
++  m_pDrawWidget->resize(size);
++  size.setHeight(size.height());
++  setMaximumSize(size);
++  setMinimumSize(size);
++
+
+   setCentralWidget(m_pDrawWidget);
+
+@@ -202,16 +217,18 @@ MainWindow::MainWindow(Framework & framework, bool apiOpenGLES3,
+     caption += QString(" - ") + m_mapcssFilePath;
+ #endif
+
+-  setWindowTitle(caption);
+-  setWindowIcon(QIcon(":/ui/logo.png"));
++  //setWindowTitle(caption);
++  //setWindowIcon(QIcon(":/ui/logo.png"));
+
+ #ifndef OMIM_OS_WINDOWS
++  /*
+   QMenu * helpMenu = new QMenu(tr("Help"), this);
+   menuBar()->addMenu(helpMenu);
+   helpMenu->addAction(tr("About"), this, SLOT(OnAbout()));
+   helpMenu->addAction(tr("Preferences"), this, SLOT(OnPreferences()));
+   helpMenu->addAction(tr("OpenStreetMap Login"), this, SLOT(OnLoginMenuItem()));
+   helpMenu->addAction(tr("Upload Edits"), this, SLOT(OnUploadEditsMenuItem()));
++  */
+ #else
+   {
+     // create items in the system menu
+@@ -235,8 +252,13 @@ MainWindow::MainWindow(Framework & framework, bool apiOpenGLES3,
+   }
+ #endif
+
++
++
++std::cout << "111111111etretretet";
++std::cout << "111111111etretretet";
++
+   // Always show on full screen.
+-  showMaximized();
++  //showMaximized();
+
+ #ifndef NO_DOWNLOADER
+   // Show intro dialog if necessary
+@@ -304,6 +326,7 @@ bool MainWindow::winEvent(MSG * msg, long * result)
+
+ void MainWindow::LocationStateModeChanged(location::EMyPositionMode mode)
+ {
++  /*
+   if (mode == location::PendingPosition)
+   {
+     m_locationService->Start();
+@@ -314,6 +337,8 @@ void MainWindow::LocationStateModeChanged(location::EMyPositionMode mode)
+
+   m_pMyPositionAction->setIcon(QIcon(":/navig64/location.png"));
+   m_pMyPositionAction->setToolTip(tr("My Position"));
++
++  */
+ }
+
+ void MainWindow::CreateNavigationBar()
+@@ -328,7 +353,8 @@ void MainWindow::CreateNavigationBar()
+     qt::common::Hotkey const hotkeys[] = {
+       { Qt::Key_A, SLOT(ShowAll()) },
+       // Use CMD+n (New Item hotkey) to activate Create Feature mode.
+-      { Qt::Key_Escape, SLOT(ChoosePositionModeDisable()) }
++      { Qt::Key_Escape, SLOT(ChoosePositionModeDisable()) },
++      { Qt::CTRL + Qt::Key_Q, SLOT(CloseApp()) }
+     };
+
+     for (auto const & hotkey : hotkeys)
+@@ -398,13 +428,17 @@ void MainWindow::CreateNavigationBar()
+
+     pToolBar->addSeparator();
+
++    /*
+     m_pCreateFeatureAction = pToolBar->addAction(QIcon(":/navig64/select.png"), tr("Create Feature"),
+                                                  this, SLOT(OnCreateFeatureClicked()));
+     m_pCreateFeatureAction->setCheckable(true);
+     m_pCreateFeatureAction->setToolTip(tr("Please select position on a map."));
+     m_pCreateFeatureAction->setShortcut(QKeySequence::New);
+-
++    */
++
+     pToolBar->addSeparator();
++
++    /*
+
+     m_selectionMode = pToolBar->addAction(QIcon(":/navig64/selectmode.png"), tr("Selection mode"),
+                                           this, SLOT(OnSwitchSelectionMode()));
+@@ -427,6 +461,7 @@ void MainWindow::CreateNavigationBar()
+     m_selectionMwmsBordersMode->setCheckable(true);
+
+     pToolBar->addSeparator();
++    */
+
+ #endif // NOT BUILD_DESIGNER
+
+@@ -453,12 +488,14 @@ void MainWindow::CreateNavigationBar()
+ // #ifndef OMIM_OS_LINUX
+     // add my position button with "checked" behavior
+
++    /*
+     m_pMyPositionAction = pToolBar->addAction(QIcon(":/navig64/location.png"),
+                                            tr("My Position"),
+                                            this,
+                                            SLOT(OnMyPosition()));
+     m_pMyPositionAction->setCheckable(true);
+     m_pMyPositionAction->setToolTip(tr("My Position"));
++    */
+ // #endif
+
+ #ifdef BUILD_DESIGNER
+--- a/qt/mainwindow.hpp
++++ b/qt/mainwindow.hpp
+@@ -82,6 +82,7 @@ protected:
+
+   void CreatePanelImpl(size_t i, Qt::DockWidgetArea area, QString const & name,
+                        QKeySequence const & hotkey, char const * slot);
++  void CloseApp();
+   void CreateNavigationBar();
+   void CreateSearchBarAndPanel();
+   void CreateCountryStatusControls();
+diff --git a/qt/qt_common/map_widget.cpp b/qt/qt_common/map_widget.cpp
+index 12ce119a..c01b0008 100644
+--- a/qt/qt_common/map_widget.cpp
++++ b/qt/qt_common/map_widget.cpp
+@@ -108,13 +108,13 @@ void MapWidget::CreateEngine()
+   m_framework.SetViewportListener(std::bind(&MapWidget::OnViewportChanged, this, std::placeholders::_1));
+ }
+
+-void MapWidget::ScalePlus() { m_framework.Scale(Framework::SCALE_MAG, true); }
++void MapWidget::ScalePlus() { m_framework.Scale(Framework::SCALE_MAG, false); }
+
+-void MapWidget::ScaleMinus() { m_framework.Scale(Framework::SCALE_MIN, true); }
++void MapWidget::ScaleMinus() { m_framework.Scale(Framework::SCALE_MIN, false); }
+
+-void MapWidget::ScalePlusLight() { m_framework.Scale(Framework::SCALE_MAG_LIGHT, true); }
++void MapWidget::ScalePlusLight() { m_framework.Scale(Framework::SCALE_MAG_LIGHT, false); }
+
+-void MapWidget::ScaleMinusLight() { m_framework.Scale(Framework::SCALE_MIN_LIGHT, true); }
++void MapWidget::ScaleMinusLight() { m_framework.Scale(Framework::SCALE_MIN_LIGHT, false); }
+
+ void MapWidget::AntialiasingOn()
+ {
+@@ -203,7 +203,8 @@ void MapWidget::Build()
+   {
+     vertexSrc =
+         "\
+-      #version 150 core\n \
++      #version 300 es\n \
++      precision highp float;\
+       in vec4 a_position; \
+       uniform vec2 u_samplerSize; \
+       out vec2 v_texCoord; \
+@@ -216,7 +217,8 @@ void MapWidget::Build()
+
+     fragmentSrc =
+         "\
+-      #version 150 core\n \
++      #version 300 es\n \
++      precision highp float;\
+       uniform sampler2D u_sampler; \
+       in vec2 v_texCoord; \
+       out vec4 v_FragColor; \
+diff --git a/qt/search_panel.cpp b/qt/search_panel.cpp
+index dfa9e912..bce56d08 100644
+--- a/qt/search_panel.cpp
++++ b/qt/search_panel.cpp
+@@ -255,7 +255,12 @@ void SearchPanel::OnSearchTextChanged(QString const & str)
+ void SearchPanel::OnSearchPanelItemClicked(int row, int)
+ {
+   ASSERT_EQUAL(m_results.size(), static_cast<size_t>(m_pTable->rowCount()), ());
+-
++
++  m_pDrawWidget->GetFramework().ShowSearchResult(m_results[row]);
++
++  return;
++
++
+   if (m_results[row].IsSuggest())
+   {
+     // insert suggestion into the search bar
+
+--- a/shaders/gl_shaders_preprocessor.py
++++ b/shaders/gl_shaders_preprocessor.py
+@@ -220,7 +220,8 @@ def write_implementation_file(programs_def, shader_index, shader_dir, impl_file,
+
+         file.write("namespace gpu\n")
+         file.write("{\n")
+-        file.write("char const * GL3_SHADER_VERSION = \"#version 150 core \\n\";\n")
++        #file.write("char const * GL3_SHADER_VERSION = \"#version 150 core \\n\";\n")
++        file.write("char const * GL3_SHADER_VERSION = \"#version 300 es \\n\";\n")
+         file.write("char const * GLES3_SHADER_VERSION = \"#version 300 es \\n\";\n\n")
+
+         for shader in shader_index.keys():
+--- a/storage/storage.cpp
++++ b/storage/storage.cpp
+@@ -884,12 +880,13 @@ void Storage::RegisterDownloadedFiles(CountryId const & countryId, MapFileType t
+   }
+
+   static string const kSourceKey = "map";
++  /*
+   if (m_integrityValidationEnabled && !localFile->ValidateIntegrity())
+   {
+     base::DeleteFileX(localFile->GetPath(MapFileType::Map));
+-    fn(false /* isSuccess */);
++    fn(false);
+     return;
+-  }
++  }*/
+
+   RegisterCountryFiles(localFile);
+   fn(true);

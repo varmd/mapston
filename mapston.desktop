@@ -1,0 +1,12 @@
+#!/usr/bin/env xdg-open
+
+[Desktop Entry]
+Name=MAPSWITHME
+GenericName=MAPSWITHME
+Comment=Offline Maps
+Exec=/usr/bin/mapston
+Terminal=false
+Type=Application
+Icon=/usr/lib/mapston/find-location-symbolic.svg
+Categories=Network;
+MimeType=;

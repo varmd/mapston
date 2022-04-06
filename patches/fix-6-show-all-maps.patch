@@ -1,0 +1,14 @@
+--- a/platform/local_country_file_utils.cpp
++++ b/platform/local_country_file_utils.cpp
+@@ -225,7 +225,10 @@
+ void FindAllLocalMapsAndCleanup(int64_t latestVersion, string const & dataDir,
+                                 vector<LocalCountryFile> & localFiles)
+ {
+-  string const dir = GetDataDirFullPath(dataDir);
++  string dir = GetDataDirFullPath(dataDir);
++  if(dataDir == "/usr/lib/mapston/resources/")
++    dir = dataDir;
++  
+   FindAllLocalMapsInDirectoryAndCleanup(dir, 0 /* version */, latestVersion, localFiles);
+ 
+   Platform::TFilesWithType fwts;

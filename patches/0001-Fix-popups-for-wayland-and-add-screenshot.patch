@@ -1,0 +1,546 @@
+Copyright (C) 2020 varmd (https://github.com/varmd)
+
+---
+ qt/draw_widget.cpp          | 281 +++++++++++++++++++++++++++++++++++-
+ qt/draw_widget.hpp          |   3 +
+ qt/main.cpp                 |  54 ++++++-
+ qt/mainwindow.cpp           |  30 +++-
+ qt/mainwindow.hpp           |   6 +-
+ qt/qt_common/map_widget.cpp |  16 +-
+ qt/res/resources.qrc        |   1 +
+ storage/storage.cpp         |   1 +
+
+diff --git a/qt/draw_widget.cpp b/qt/draw_widget.cpp
+index c44d24b0..1b5f5fe1 100644
+--- a/qt/draw_widget.cpp
++++ b/qt/draw_widget.cpp
+@@ -10,6 +10,9 @@
+ 
+ #include "map/framework.hpp"
+ 
++#include "qt/mainwindow.hpp"
++
++
+ #include "generator/borders.hpp"
+ 
+ #include "search/result.hpp"
+@@ -43,8 +43,16 @@
+ #include <QtWidgets/QApplication>
+ #include <QtWidgets/QDesktopWidget>
+ #include <QtWidgets/QDialogButtonBox>
+ #include <QtWidgets/QMenu>
++#include <QtWidgets/QHeaderView>
++#include <QtWidgets/QTableWidget>
++#include <QtWidgets/QLineEdit>
++#include <QtWidgets/QVBoxLayout>
++#include <QtWidgets/QHBoxLayout>
++#include <QtWidgets/QPushButton>
++#include <QtWidgets/QLabel>
++#include <QtWidgets/QDockWidget>
+ 
+ #include <string>
+ #include <vector>
+ 
+@@ -46,4 +46,9 @@
+ #include <string>
+ #include <vector>
+ 
++#include <iostream>
++#include <iomanip>
++#include <ctime>
++#include <QtWidgets/QMainWindow>
++#include <QtGui/QWindow>
+ using namespace qt::common;
+@@ -198,6 +221,33 @@ void DrawWidget::CloseApp()
+   //exit(1);
+ }
+ 
++void DrawWidget::SaveMapScreenshot()
++{
++  
++  auto t = std::time(nullptr);
++  auto tm = *std::localtime(&t);
++  std::cout << std::put_time(&tm, "%d-%m-%Y %H-%M-%S") << std::endl;
++  char const * homePath = ::getenv("HOME");
++  std::ostringstream oss;
++  oss << std::put_time(&tm, "%d-%m-%Y %H-%M-%S");
++  auto str = oss.str();
++  
++  std::string file_name = "mapston-saved-" + str + ".png";
++  
++  QPixmap pixmap(QSize(1500, 950));
++  this->render(&pixmap, QPoint(), QRegion(this->geometry()));
++  if (!pixmap.save(QString::fromStdString(base::JoinPath(homePath, file_name)),
++                   nullptr, 100))
++  {
++    
++    return;
++  }
++  
++  
++  //QCoreApplication::quit();
++  //exit(1);
++}
++
+ void DrawWidget::ShowAll()
+ {
+   m_framework.ShowAll();
+@@ -264,7 +314,7 @@ void DrawWidget::mousePressEvent(QMouseEvent * e)
+     }
+     else if (!m_currentSelectionMode || IsCommandModifier(e))
+     {
+-      ShowInfoPopup(e, pt);
++      ShowInfoPopup(e, pt);      
+     }
+     else
+     {
+@@ -660,6 +710,8 @@ void DrawWidget::OnRouteRecommendation(RoutingManager::Recommendation recommenda
+ 
+ void DrawWidget::ShowPlacePage()
+ {
++  
++  
+   place_page::Info const & info = m_framework.GetCurrentPlacePageInfo();
+   search::ReverseGeocoder::Address address;
+   if (info.IsFeature())
+@@ -672,7 +724,18 @@ void DrawWidget::ShowPlacePage()
+     address = m_framework.GetAddressAtPoint(info.GetMercator());
+   }
+ 
++  ShowPlaceInfo(info, address);
++  
++  return;
+   PlacePageDialog dlg(this, info, address);
++  
++  
++  
++
++  dlg.setModal(true);
++  dlg.show();
++  
++  /*
+   if (dlg.exec() == QDialog::Accepted)
+   {
+     osm::EditableMapObject emo;
+@@ -695,6 +758,7 @@ void DrawWidget::ShowPlacePage()
+       LOG(LERROR, ("Error while trying to edit feature."));
+     }
+   }
++  */
+   m_framework.DeactivateMapSelection(false);
+ }
+ 
+@@ -742,6 +806,221 @@ void DrawWidget::RefreshDrawingRules()
+   SetMapStyle(MapStyleClear);
+ }
+ 
++void DrawWidget::ShowPlaceInfo(place_page::Info const & info,
++                                 search::ReverseGeocoder::Address const & address) {
++
++
++  auto m_pTable = new QTableWidget(0, 2 /*columns*/, this);
++  m_pTable->setFocusPolicy(Qt::NoFocus);
++  m_pTable->setAlternatingRowColors(true);
++  m_pTable->setShowGrid(false);
++  m_pTable->setSelectionBehavior(QAbstractItemView::SelectRows);
++  m_pTable->verticalHeader()->setVisible(false);
++  m_pTable->horizontalHeader()->setVisible(false);
++  m_pTable->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
++
++  
++  int row = 0;
++  m_pTable->insertRow(row);
++   // Coordinates.
++    ms::LatLon const ll = info.GetLatLon();
++    std::string const llstr =
++        strings::to_string_dac(ll.m_lat, 7) + ", " + strings::to_string_dac(ll.m_lon, 7);
++    QLabel * label = new QLabel(llstr.c_str());
++    label->setTextInteractionFlags(Qt::TextSelectableByMouse);
++    
++    
++    m_pTable->setItem(row, 0, new QTableWidgetItem("lat, lon"));
++    m_pTable->setItem(row, 1, new QTableWidgetItem(llstr.c_str()));
++    row++;
++    
++  
++  
++    
++    
++    m_pTable->insertRow(row);
++    m_pTable->setCellWidget(row, 0, new QLabel("CountryId"));
++    m_pTable->setItem(row, 1,  new QTableWidgetItem(QString::fromStdString(info.GetCountryId())));
++    
++    row++;
++  
++  // Title/Name/Custom Name.
++  if (!info.GetTitle().empty())
++  {
++    QLabel * label = new QLabel(QString::fromStdString(info.GetTitle()));
++    label->setTextInteractionFlags(Qt::TextSelectableByMouse);
++    
++    
++    m_pTable->insertRow(row);
++    m_pTable->setCellWidget(row, 0, new QLabel("Title"));
++    m_pTable->setCellWidget(row, 1, label);    
++    row++;
++  }
++  // Subtitle.
++  if (info.IsFeature())
++  {
++    QLabel * label = new QLabel(QString::fromStdString(info.GetSubtitle()));
++    label->setTextInteractionFlags(Qt::TextSelectableByMouse);
++    
++    m_pTable->insertRow(row);
++    m_pTable->setCellWidget(row, 0, new QLabel("Subtitle"));
++    m_pTable->setCellWidget(row, 1, label);    
++    row++;
++  }
++  {  // Address.
++    QLabel * label = new QLabel(QString::fromStdString(address.FormatAddress()));
++    label->setTextInteractionFlags(Qt::TextSelectableByMouse);
++    
++    m_pTable->insertRow(row);
++    m_pTable->setCellWidget(row, 0, new QLabel("Address"));
++    m_pTable->setCellWidget(row, 1, label);
++    row++;
++  }
++  if (info.IsBookmark())
++  {
++    
++    
++    m_pTable->insertRow(row);
++    m_pTable->setCellWidget(row, 0, new QLabel("Bookmark"));
++    m_pTable->setCellWidget(row, 1, new QLabel("Yes"));
++    row++;
++    
++  }
++  if (info.IsMyPosition())
++  {
++    
++    
++     
++     m_pTable->setCellWidget(row, 0, new QLabel("MyPosition"));
++     m_pTable->setCellWidget(row, 1, new QLabel("Yes"));
++    m_pTable->insertRow(row);
++    row++;
++  }
++  if (info.HasApiUrl())
++  {
++    
++    m_pTable->insertRow(row);
++    m_pTable->setCellWidget(row, 0, new QLabel("Api URL"));
++    m_pTable->setCellWidget(row, 1, new QLabel(QString::fromStdString(info.GetApiUrl())));
++    row++;
++  }
++  if (info.IsFeature())
++  {
++   
++    m_pTable->insertRow(row);
++    m_pTable->setCellWidget(row, 0, new QLabel("Feature ID"));
++    m_pTable->setCellWidget(row, 1, new QLabel(QString::fromStdString(DebugPrint(info.GetID()))));
++    row++;
++    
++    m_pTable->insertRow(row);
++    m_pTable->setCellWidget(row, 0, new QLabel("Raw Types"));
++    QLabel * label = new QLabel(QString::fromStdString(DebugPrint(info.GetTypes())));
++    label->setTextInteractionFlags(Qt::TextSelectableByMouse);
++    m_pTable->setCellWidget(row, 1, label);
++    row++;
++
++    
++    
++  }
++  for (auto const prop : info.AvailableProperties())
++  {
++    QString k;
++    std::string v;
++    bool link = false;
++    switch (prop)
++    {
++    case osm::Props::Phone:
++      k = "Phone";
++      v = info.GetPhone();
++      break;
++    case osm::Props::Fax:
++      k = "Fax";
++      v = info.GetFax();
++      break;
++    case osm::Props::Email:
++      k = "Email";
++      v = info.GetEmail();
++      link = true;
++      break;
++    case osm::Props::Website:
++      k = "Website";
++      v = info.GetWebsite();
++      link = true;
++      break;
++    case osm::Props::Internet:
++      k = "Internet";
++      v = DebugPrint(info.GetInternet());
++      break;
++    case osm::Props::Cuisine:
++      k = "Cuisine";
++      v = strings::JoinStrings(info.GetCuisines(), ", ");
++      break;
++    case osm::Props::OpeningHours:
++      k = "OpeningHours";
++      v = info.GetOpeningHours();
++      break;
++    case osm::Props::Stars:
++      k = "Stars";
++      v = std::to_string(info.GetStars());
++      break;
++    case osm::Props::Operator:
++      k = "Operator";
++      v = info.GetOperator();
++      break;
++    case osm::Props::Elevation:
++      k = "Elevation";
++      v = info.GetElevationFormatted();
++      break;
++    case osm::Props::Wikipedia:
++      k = "Wikipedia";
++      v = info.GetWikipediaLink();
++      link = true;
++      break;
++    case osm::Props::Flats:
++      k = "Flats";
++      v = info.GetFlats();
++      break;
++    case osm::Props::BuildingLevels:
++      k = "Building Levels";
++      v = info.GetBuildingLevels();
++      break;
++    case osm::Props::Level:
++      k = "Level";
++      v = info.GetLevel();
++      break;
++    }
++    
++    
++    QLabel * label = new QLabel(QString::fromStdString(v));
++    label->setTextInteractionFlags(Qt::TextSelectableByMouse);
++    if (link)
++    {
++      label->setOpenExternalLinks(true);
++      label->setTextInteractionFlags(Qt::TextBrowserInteraction);
++      label->setText(QString::fromStdString("<a href=\"" + v + "\">" + v + "</a>"));
++    }
++    
++    m_pTable->insertRow(row);
++    m_pTable->setCellWidget(row, 0, new QLabel(k));
++    m_pTable->setCellWidget(row, 1, label);    
++    row++;
++  }
++
++  /*
++  QHBoxLayout * horizontalLayout = new QHBoxLayout();
++  QVBoxLayout * verticalLayout = new QVBoxLayout();
++  verticalLayout->addLayout(horizontalLayout);
++  verticalLayout->addWidget(m_pTable);
++  */
++  //setLayout(verticalLayout);
++  
++  global_qt_main_window->m_Docks[1]->setWidget(m_pTable);
++  global_qt_main_window->m_Docks[1]->show();
++  //global_qt_main_window->m_Docks[0]->show();
++}
++
++
++
+ m2::PointD DrawWidget::GetCoordsFromSettingsIfExists(bool start, m2::PointD const & pt)
+ {
+   if (auto optional = RoutingSettings::GetCoords(start))
+diff --git a/qt/draw_widget.hpp b/qt/draw_widget.hpp
+index 23617f07..3cf3e0bb 100644
+--- a/qt/draw_widget.hpp
++++ b/qt/draw_widget.hpp
+@@ -46,6 +46,7 @@ class DrawWidget : public qt::common::MapWidget
+ public Q_SLOTS:
+   void ShowAll();
+   void CloseApp();
++  void SaveMapScreenshot();
+ 
+   void ChoosePositionModeEnable();
+   void ChoosePositionModeDisable();
+@@ -90,6 +91,8 @@ public:
+   void OnRouteRecommendation(RoutingManager::Recommendation recommendation);
+ 
+   void RefreshDrawingRules();
++  void ShowPlaceInfo(place_page::Info const & info,
++                                 search::ReverseGeocoder::Address const & address);
+ 
+   static void SetDefaultSurfaceFormat(bool apiOpenGLES3);
+ 
+diff --git a/qt/main.cpp b/qt/main.cpp
+index 5e3ae381..86a19419 100644
+--- a/qt/main.cpp
++++ b/qt/main.cpp
+@@ -21,6 +24,8 @@
+ #include "3party/Alohalytics/src/alohalytics.h"
+ #include "3party/gflags/src/gflags/gflags.h"
+ 
++#include <QtGui/QWindow>
++#include <QtWidgets/QMainWindow>
+ #include <QtCore/QDir>
+ #include <QtWidgets/QMessageBox>
+ #include <QtWidgets/QApplication>
+
+--- a/qt/mainwindow.cpp
++++ b/qt/mainwindow.cpp
+@@ -210,6 +210,7 @@ MainWindow::MainWindow(Framework & framework, bool apiOpenGLES3,
+   CreateCountryStatusControls();
+   CreateNavigationBar();
+   CreateSearchBarAndPanel();
++  CreateInfoBarAndPanel();
+ 
+   QString caption = qAppName();
+ #ifdef BUILD_DESIGNER
+@@ -344,8 +344,10 @@ void MainWindow::LocationStateModeChanged(location::EMyPositionMode mode)
+ void MainWindow::CreateNavigationBar()
+ {
+   QToolBar * pToolBar = new QToolBar(tr("Navigation Bar"), this);
++  pToolBar->setFloatable(false);
++  pToolBar->setMovable(false);
+   pToolBar->setOrientation(Qt::Vertical);
+-  pToolBar->setIconSize(QSize(32, 32));
++  pToolBar->setIconSize(QSize(24, 24));
+   {
+     m_pDrawWidget->BindHotkeys(*this);
+ 
+@@ -563,7 +565,15 @@ void MainWindow::CreateNavigationBar()
+     };
+     add_buttons(pToolBar, arr, ARRAY_SIZE(arr), this);
+   }
++  
++  
+ #endif // NO_DOWNLOADER
++  
++  
++  
++  
++  pToolBar->addAction(QIcon(":/navig64/load.png"), tr("Screenshot the Map"),
++                                           m_pDrawWidget, SLOT(SaveMapScreenshot()));
+ 
+   if (m_screenshotMode)
+     pToolBar->setVisible(false);
+@@ -956,6 +970,14 @@ void MainWindow::ShowUpdateDialog()
+ 
+ #endif // NO_DOWNLOADER
+ 
++void MainWindow::CreateInfoBarAndPanel()
++{
++  CreatePanelImpl(1, Qt::BottomDockWidgetArea, tr("Info"), QKeySequence(), 0);
++
++  //SearchPanel * panel = new SearchPanel(m_pDrawWidget, m_Docks[0]);
++  m_Docks[1]->setWidget(new QLabel("erferw"));
++}
++
+ void MainWindow::CreateSearchBarAndPanel()
+ {
+   CreatePanelImpl(0, Qt::RightDockWidgetArea, tr("Search"), QKeySequence(), 0);
+diff --git a/qt/mainwindow.hpp b/qt/mainwindow.hpp
+index b5be75d3..9c78c704 100644
+--- a/qt/mainwindow.hpp
++++ b/qt/mainwindow.hpp
+@@ -29,7 +31,7 @@ class MainWindow : public QMainWindow, location::LocationObserver
+ {
+   DrawWidget * m_pDrawWidget = nullptr;
+   // TODO(mgsergio): Make indexing more informative.
+-  std::array<QDockWidget *, 1> m_Docks;
++  
+ 
+   QPushButton * m_downloadButton = nullptr;
+   QPushButton * m_retryButton = nullptr;
+@@ -68,6 +70,7 @@ class MainWindow : public QMainWindow, location::LocationObserver
+   Q_OBJECT
+ 
+ public:
++  std::array<QDockWidget *, 2> m_Docks;
+   MainWindow(Framework & framework, bool apiOpenGLES3, std::unique_ptr<ScreenshotParams> && screenshotParams,
+              QString const & mapcssFilePath = QString());
+ 
+@@ -85,6 +88,7 @@ protected:
+   void CloseApp();
+   void CreateNavigationBar();
+   void CreateSearchBarAndPanel();
++  void CreateInfoBarAndPanel();
+   void CreateCountryStatusControls();
+ 
+ #if defined(Q_WS_WIN)
+
+--- a/qt/qt_common/map_widget.cpp
++++ b/qt/qt_common/map_widget.cpp
+@@ -12,6 +12,8 @@
+ #include <functional>
+ #include <string>
+ 
++#include <QtWidgets/QApplication>
++#include <QtGui/QWindow>
+ #include <QtGui/QMouseEvent>
+ #include <QtGui/QOpenGLFunctions>
+ #include <QtGui/QOpenGLShaderProgram>
+@@ -21,6 +23,8 @@
+ #include <QtGui/QOpenGLBuffer>
+ #include <QtGui/QOpenGLVertexArrayObject>
+ 
++
++
+ namespace qt
+ {
+ namespace common
+@@ -280,10 +284,10 @@ void MapWidget::Build()
+ void MapWidget::ShowInfoPopup(QMouseEvent * e, m2::PointD const & pt)
+ {
+   // show feature types
+-  QMenu menu;
++  auto menu = new QMenu(tr("Info"), this);
+   auto const addStringFn = [&menu](std::string const & s)
+   {
+     if (!s.empty())
+-      menu.addAction(QString::fromUtf8(s.c_str()));
++      menu->addAction(QString::fromUtf8(s.c_str()));
+   };
+ 
+   m_framework.ForEachFeatureAtPoint([&](FeatureType & ft)
+
+@@ -304,12 +308,12 @@ void MapWidget::ShowInfoPopup(QMouseEvent * e, m2::PointD const & pt)
+           addStringFn(DebugPrint(speed));
+       }
+     }
+ 
+-        menu.addSeparator();
++        menu->addSeparator();
+       }, m_framework.PtoG(pt));
+-
+-  menu.exec(e->pos());
++  menu->popup(e->pos());
+ }
+ 
+ void MapWidget::initializeGL()
+--- a/qt/res/resources.qrc
++++ b/qt/res/resources.qrc
+@@ -30,6 +30,7 @@
+         <file>ruler.png</file>
+         <file>settings-routing.png</file>
+         <file>borders_selection.png</file>
++        <file>load.png</file>
+     </qresource>
+     <qresource prefix="/ui">
+         <file>logo.png</file>
+diff --git a/storage/storage.cpp b/storage/storage.cpp
+index 17fd72f6..1cef611c 100644
+--- a/storage/storage.cpp
++++ b/storage/storage.cpp
+@@ -182,6 +182,7 @@ void Storage::RegisterAllLocalMaps(bool enableDiffs)
+   m_localFilesForFakeCountries.clear();
+ 
+   vector<LocalCountryFile> localFiles;
++  FindAllLocalMapsAndCleanup(GetCurrentDataVersion(), "/usr/lib/mapston/resources/", localFiles);
+   FindAllLocalMapsAndCleanup(GetCurrentDataVersion(), m_dataDir, localFiles);
+ 
+   auto compareByCountryAndVersion = [](LocalCountryFile const & lhs, LocalCountryFile const & rhs) {
+-- 
+2.24.0
+

@@ -1,0 +1,22 @@
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -256,7 +258,7 @@
+ set(EXPAT_BUILD_PKGCONFIG OFF)
+ set(EXPAT_ENABLE_INSTALL OFF)
+ set(EXPAT_SHARED_LIBS OFF)
+-add_subdirectory(3party/expat/expat)
++#add_subdirectory(3party/expat/expat)
+ add_subdirectory(3party/agg)
+ add_subdirectory(3party/bsdiff-courgette)
+ add_subdirectory(3party/gflags)
+@@ -337,9 +339,9 @@
+   add_subdirectory(track_generator)
+   if (NOT SKIP_DESKTOP)
+     add_subdirectory(qt)
+-    add_subdirectory(skin_generator)
++    #add_subdirectory(skin_generator)
+   endif()
+ endif()
+ 
+ omim_add_test_subdirectory(3party/gmock)
+ omim_add_test_subdirectory(qt_tstfrm)
